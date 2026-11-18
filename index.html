@@ -219,18 +219,19 @@ async function addFile(file){
 }
 async function addFiles(list){
   $('upMsg').textContent='جارٍ التحميل…';
-  for (const f of list) await addFile(f);
+  let bad=0;
+  for (const f of list){ try{ await addFile(f); }catch(err){ bad++; } }
   files.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'}));
   cur = 0;
-  if ($('upMsg').textContent==='جارٍ التحميل…') $('upMsg').textContent = files.length+' ملف مرفوع';
+  if ($('upMsg').textContent==='جارٍ التحميل…') $('upMsg').textContent = files.length+' ملف مرفوع'+(bad?(' — تعذّر قراءة '+bad+' ملف'):'');
   refresh();
 }
 const drop=$('drop');
 drop.onclick=()=>$('file').click();
-$('file').onchange=e=>{addFiles(e.target.files); e.target.value='';};
+$('file').onchange=e=>{ const arr=Array.from(e.target.files); e.target.value=''; addFiles(arr); };
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('on');};
 drop.ondragleave=()=>drop.classList.remove('on');
-drop.ondrop=e=>{e.preventDefault();drop.classList.remove('on');addFiles(e.dataTransfer.files);};
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('on');addFiles(Array.from(e.dataTransfer.files));};
 
 // ---- أحداث الإدخال
 ['sec','std','par','ind','cnt','yr','title','pages','ver','date'].forEach(id=>$(id).addEventListener('input',refresh));
@@ -275,7 +276,7 @@ $('dlPdf').onclick=async()=>{
   formImg = await loadImg(FORM_SRC);
   refresh();
   try{ downloads = (typeof claude!=='undefined') ? await claude.use('downloads') : null; }catch(e){ downloads=null; }
-  if(!downloads){ // تشغيل مستقل (GitHub Pages أو ملف محلي): تنزيل مباشر
+  if(!downloads){
     downloads={save:async({filename,data})=>{ const blob=data instanceof Blob?data:new Blob([data]); const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),4000); return {status:'saved'}; }};
   }
   if(!downloads){ $('dlPng').style.display='none'; $('dlPdf').style.display='none'; msg('أزرار الحفظ غير متاحة في هذا العرض.'); }
