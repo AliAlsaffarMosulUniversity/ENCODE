@@ -200,7 +200,7 @@ function refresh(){
 // ---- رفع الملفات
 function loadImg(src){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=src; }); }
 async function addFile(file){
-  if (file.type === 'application/pdf'){
+  if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)){
     try{
       pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
@@ -213,17 +213,17 @@ async function addFile(file){
     }catch(e){ $('upMsg').textContent='تعذّر قراءة ملف PDF هنا. حوّل صفحاته إلى صور ثم ارفعها.'; }
     return;
   }
-  if (!file.type.startsWith('image/')) return;
   const url = await new Promise(r=>{const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(file);});
   files.push({img:await loadImg(url),url,name:file.name});
 }
 async function addFiles(list){
   $('upMsg').textContent='جارٍ التحميل…';
-  let bad=0;
-  for (const f of list){ try{ await addFile(f); }catch(err){ bad++; } }
+  const failed=[], before=files.length;
+  for (const f of list){ try{ const n=files.length; await addFile(f); if(files.length===n) failed.push(f.name); }catch(err){ failed.push(f.name); } }
+  const bad=failed.length;
   files.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'}));
   cur = 0;
-  if ($('upMsg').textContent==='جارٍ التحميل…') $('upMsg').textContent = files.length+' ملف مرفوع'+(bad?(' — تعذّر قراءة '+bad+' ملف'):'');
+  if ($('upMsg').textContent==='جارٍ التحميل…') $('upMsg').textContent = 'تم تحميل '+(files.length-before)+' من '+list.length+' ملف (المجموع '+files.length+')'+(bad?(' — تعذّر قراءة: '+failed.slice(0,8).join('، ')+(bad>8?' …':'')):'');
   refresh();
 }
 const drop=$('drop');
