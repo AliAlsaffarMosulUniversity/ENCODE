@@ -80,7 +80,7 @@ canvas{width:100%;max-width:640px;height:auto;background:#fff;box-shadow:0 6px 2
       <div class="full"><label>عنوان الوثيقة</label><input type="text" id="title" placeholder="مثال: محضر اجتماع مجلس القسم"></div>
       <div><label>عدد الصفحات</label><input type="text" id="pages" placeholder="تلقائي"></div>
       <div><label>رقم الإصدار</label><input type="text" id="ver" value="1"></div>
-      <div class="full"><label>تاريخ الوثيقة</label><input type="date" id="date"></div>
+      <div class="full"><label>تاريخ الوثيقة</label><input type="text" id="date" placeholder="اكتبه كما تريد، مثال: 2026/11/18"></div>
     </div>
   </div>
 
@@ -177,7 +177,7 @@ function render(c, idx){
   put($('title').value.trim(), 868, 85, 660, false);
   const pg = $('pages').value.trim() || (files.length ? '1' : '');
   put(pg, 300, 142, 95, false);
-  const d = $('date').value; if (d){ const [Y,M,D]=d.split('-'); put(D+'/'+M+'/'+Y, 378, 183, 175, true); }
+  const d = $('date').value.trim(); if (d) put(d, 378, 183, 175, !/[\u0600-\u06FF]/.test(d));
   put($('ver').value.trim(), 326, 224, 120, false);
 }
 
@@ -271,7 +271,6 @@ $('dlPdf').onclick=async()=>{
 
 // ---- بدء
 (async()=>{
-  const t=new Date(); $('date').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
   try{ await document.fonts.load('700 30px Cairo'); await document.fonts.load('600 34px Cairo'); }catch(e){}
   formImg = await loadImg(FORM_SRC);
   refresh();
