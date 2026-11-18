@@ -117,7 +117,13 @@ canvas{width:100%;max-width:640px;height:auto;background:#fff;box-shadow:0 6px 2
       <button class="btn alt" id="rotR">تدوير لليمين ↻</button>
       <button class="btn alt" id="rotF">قلب رأساً على عقب</button>
     </div>
-    <label class="chk" style="justify-content:center"><input type="checkbox" id="rotAll"> تطبيق التدوير على كل الملفات</label>
+    <div class="row" style="justify-content:center">
+      <button class="btn alt" id="lvUp">زيادة الإنارة ☀</button>
+      <button class="btn alt" id="lvDn">تقليل الإنارة ☾</button>
+      <button class="btn alt" id="lvReset">إعادة الضبط</button>
+    </div>
+    <div class="msg" id="lvInfo" style="text-align:center"></div>
+    <label class="chk" style="justify-content:center"><input type="checkbox" id="rotAll"> تطبيق التدوير والإنارة على كل الملفات</label>
     <div class="row" style="justify-content:center">
       <button class="btn" id="dlPng">حفظ الصفحة الحالية (PNG)</button>
       <button class="btn" id="dlImgs">حفظ كل الصفحات كصور</button>
@@ -154,6 +160,16 @@ function fitText(ctx, text, maxW, size, weight, font){
 }
 function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 
+function drawAdj(ctx,img,x,y,w,h,lv){
+  if(!lv){ ctx.drawImage(img,x,y,w,h); return; }
+  const b=Math.max(0.2,1+0.12*lv), k=lv>0?1+0.06*lv:1+0.03*lv;
+  if('filter' in ctx){ ctx.filter='brightness('+b+') contrast('+k+')'; ctx.drawImage(img,x,y,w,h); ctx.filter='none'; return; }
+  const tc=document.createElement('canvas'); tc.width=Math.max(1,Math.round(w)); tc.height=Math.max(1,Math.round(h));
+  const tx=tc.getContext('2d'); tx.drawImage(img,0,0,tc.width,tc.height);
+  const id=tx.getImageData(0,0,tc.width,tc.height), d=id.data;
+  for(let i=0;i<d.length;i+=4){ for(let j=0;j<3;j++){ const v=((d[i+j]*b-128)*k+128); d[i+j]=v<0?0:v>255?255:v; } }
+  tx.putImageData(id,0,0); ctx.drawImage(tc,x,y,w,h);
+}
 function render(c, idx){
   const ctx = c.getContext('2d');
   ctx.clearRect(0,0,c.width,c.height);
@@ -175,7 +191,7 @@ function render(c, idx){
     ctx.restore();
     ctx.save(); ctx.translate(x+w/2,y+h/2); ctx.rotate(rot*Math.PI/180);
     const dw = odd?h:w, dh = odd?w:h;
-    ctx.drawImage(f.img,-dw/2,-dh/2,dw,dh); ctx.restore();
+    drawAdj(ctx,f.img,-dw/2,-dh/2,dw,dh,f.lv||0); ctx.restore();
     ctx.strokeStyle='#9db0dd'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
   } else {
     ctx.save();
@@ -207,13 +223,14 @@ function refresh(){
   $('cnt').disabled = files.length>0; if(files.length) $('cnt').value = files.length;
   $('codeOut').textContent = makeCode(cur);
   render(cv, cur);
+  { const f=files[cur]; $('lvInfo').textContent = f ? ('مستوى الإنارة: '+((f.lv||0)>0?'+':'')+(f.lv||0)) : ''; }
   $('pgInfo').textContent = files.length ? ('الصفحة '+(cur+1)+' من '+files.length) : 'لا توجد ملفات';
   const th = $('thumbs'); th.innerHTML='';
   const lst=$('list'); lst.innerHTML='';
   files.forEach((f,i)=>{
     const r=document.createElement('div'); r.className='li'+(i===cur?' sel':''); r.innerHTML='<span dir="ltr">'+makeCode(i)+'</span><em>'+f.name.replace(/[<&]/g,'')+'</em>'; r.onclick=()=>{cur=i;refresh();}; lst.appendChild(r);
     const d=document.createElement('div'); d.className='th'+(i===cur?' sel':'');
-    d.innerHTML='<img src="'+f.url+'" style="transform:rotate('+(f.rot||0)+'deg)"><b>'+(i+1)+'</b><i title="حذف">×</i>';
+    d.innerHTML='<img src="'+f.url+'" style="transform:rotate('+(f.rot||0)+'deg);filter:brightness('+Math.max(0.2,1+0.12*(f.lv||0))+')"><b>'+(i+1)+'</b><i title="حذف">×</i>';
     d.onclick=e=>{ if(e.target.tagName==='I'){ files.splice(i,1); cur=Math.min(cur,files.length-1); if(cur<0)cur=0; } else cur=i; refresh(); };
     th.appendChild(d);
   });
@@ -263,6 +280,15 @@ function rotate(deg){
   targets.forEach(f=>{ f.rot=(((f.rot||0)+deg)%360+360)%360; });
   refresh();
 }
+function adjust(d){
+  if(!files.length) return;
+  const targets = $('rotAll').checked ? files : [files[cur]];
+  targets.forEach(f=>{ f.lv=Math.max(-5,Math.min(10,(f.lv||0)+d)); });
+  refresh();
+}
+$('lvUp').onclick=()=>adjust(1);
+$('lvDn').onclick=()=>adjust(-1);
+$('lvReset').onclick=()=>{ if(!files.length) return; (($('rotAll').checked)?files:[files[cur]]).forEach(f=>{f.lv=0;f.rot=0;}); refresh(); };
 $('rotL').onclick=()=>rotate(-90);
 $('rotR').onclick=()=>rotate(90);
 $('rotF').onclick=()=>rotate(180);
