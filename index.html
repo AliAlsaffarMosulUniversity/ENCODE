@@ -113,6 +113,12 @@ canvas{width:100%;max-width:640px;height:auto;background:#fff;box-shadow:0 6px 2
       <button class="btn alt" id="next">التالي ›</button>
     </div>
     <div class="row" style="justify-content:center">
+      <button class="btn alt" id="rotL">تدوير لليسار ↺</button>
+      <button class="btn alt" id="rotR">تدوير لليمين ↻</button>
+      <button class="btn alt" id="rotF">قلب رأساً على عقب</button>
+    </div>
+    <label class="chk" style="justify-content:center"><input type="checkbox" id="rotAll"> تطبيق التدوير على كل الملفات</label>
+    <div class="row" style="justify-content:center">
       <button class="btn" id="dlPng">حفظ الصفحة الحالية (PNG)</button>
       <button class="btn" id="dlImgs">حفظ كل الصفحات كصور</button>
       <button class="btn red" id="dlPdf">حفظ كل الصفحات (PDF)</button>
@@ -158,14 +164,18 @@ function render(c, idx){
   const bx = 85, by = 278, bw = 1071, bh = 1205;
   const f = files[idx];
   if (f){
-    const pad = 10, iw = f.img.naturalWidth || f.img.width, ih = f.img.naturalHeight || f.img.height;
+    const pad = 10, rot = ((f.rot||0)%360+360)%360, odd = rot===90||rot===270;
+    let iw = f.img.naturalWidth || f.img.width, ih = f.img.naturalHeight || f.img.height;
+    if (odd){ const tmp=iw; iw=ih; ih=tmp; }
     const sc = Math.min((bw-2*pad)/iw, (bh-2*pad)/ih);
     const w = iw*sc, h = ih*sc, x = bx+(bw-w)/2, y = by+(bh-h)/2;
     ctx.save();
     ctx.shadowColor='rgba(20,33,61,.28)'; ctx.shadowBlur=18; ctx.shadowOffsetY=4;
     ctx.fillStyle='#fff'; ctx.fillRect(x,y,w,h);
     ctx.restore();
-    ctx.drawImage(f.img,x,y,w,h);
+    ctx.save(); ctx.translate(x+w/2,y+h/2); ctx.rotate(rot*Math.PI/180);
+    const dw = odd?h:w, dh = odd?w:h;
+    ctx.drawImage(f.img,-dw/2,-dh/2,dw,dh); ctx.restore();
     ctx.strokeStyle='#9db0dd'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
   } else {
     ctx.save();
@@ -203,7 +213,7 @@ function refresh(){
   files.forEach((f,i)=>{
     const r=document.createElement('div'); r.className='li'+(i===cur?' sel':''); r.innerHTML='<span dir="ltr">'+makeCode(i)+'</span><em>'+f.name.replace(/[<&]/g,'')+'</em>'; r.onclick=()=>{cur=i;refresh();}; lst.appendChild(r);
     const d=document.createElement('div'); d.className='th'+(i===cur?' sel':'');
-    d.innerHTML='<img src="'+f.url+'"><b>'+(i+1)+'</b><i title="حذف">×</i>';
+    d.innerHTML='<img src="'+f.url+'" style="transform:rotate('+(f.rot||0)+'deg)"><b>'+(i+1)+'</b><i title="حذف">×</i>';
     d.onclick=e=>{ if(e.target.tagName==='I'){ files.splice(i,1); cur=Math.min(cur,files.length-1); if(cur<0)cur=0; } else cur=i; refresh(); };
     th.appendChild(d);
   });
@@ -247,6 +257,15 @@ drop.ondrop=e=>{e.preventDefault();drop.classList.remove('on');addFiles(Array.fr
 
 // ---- أحداث الإدخال
 ['sec','std','par','ind','cnt','yr','title','pages','ver','date'].forEach(id=>$(id).addEventListener('input',refresh));
+function rotate(deg){
+  if(!files.length) return;
+  const targets = $('rotAll').checked ? files : [files[cur]];
+  targets.forEach(f=>{ f.rot=(((f.rot||0)+deg)%360+360)%360; });
+  refresh();
+}
+$('rotL').onclick=()=>rotate(-90);
+$('rotR').onclick=()=>rotate(90);
+$('rotF').onclick=()=>rotate(180);
 $('prev').onclick=()=>{ if(cur>0){cur--;refresh();} };
 $('next').onclick=()=>{ if(cur<files.length-1){cur++;refresh();} };
 $('copyBtn').onclick=async()=>{ try{ const all=(files.length?files.map((f,i)=>makeCode(i)):[makeCode(0)]).join('\n'); await navigator.clipboard.writeText(all); $('copyMsg').textContent='تم نسخ '+(files.length||1)+' ترميز'; }catch(e){ $('copyMsg').textContent='انسخ الترميز يدوياً من المربع الداكن.'; } };
