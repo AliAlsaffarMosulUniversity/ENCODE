@@ -237,6 +237,9 @@ function render(c, idx){
   put(pg, 300, 142, 95, false);
   const d = $('date').value.trim(); if (d) put(d, 378, 183, 175, !/[\u0600-\u06FF]/.test(d));
   put($('ver').value.trim(), 326, 224, 120, false);
+  // رقم الصفحة في خانة «رقم الصفحة» أسفل الفورم (منتصف الخانة)
+  ctx.save(); ctx.direction='ltr'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font='700 46px '+F; ctx.fillStyle=ink; ctx.fillText(String(idx+1), 1105, 1625); ctx.restore();
 }
 
 function refresh(){
