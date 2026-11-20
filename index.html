@@ -50,6 +50,7 @@ input[type=text],input[type=number],input[type=date]{width:100%;border:1px solid
 .codebox .code{font-family:monospace;font-size:26px;letter-spacing:1px;direction:ltr;font-weight:700;word-break:break-all}
 button{font-family:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 14px;font-size:14px;font-weight:600}
 .btn{background:var(--accent);color:#fff}.btn.alt{background:#eef2fb;color:var(--accent)}.btn.red{background:var(--accent2);color:#fff}
+.mc{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin:8px 0 2px;line-height:1.6;cursor:pointer}.mc input{margin-top:5px}
 .mbox{margin-top:14px;border:1px dashed #b9c6e6;border-radius:12px;padding:10px 12px;background:#f8faff}.mh{font-weight:800;color:var(--accent);text-align:center}.mt{font-size:30px;font-weight:800;text-align:center;color:var(--ink);font-variant-numeric:tabular-nums}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .drop{border:2px dashed #9db0dd;border-radius:12px;padding:18px;text-align:center;color:var(--muted);background:#f8faff;cursor:pointer}
@@ -160,7 +161,8 @@ canvas{width:100%;max-width:640px;height:auto;background:#fff;box-shadow:0 6px 2
         <button class="btn alt" id="mReset">بدء قياس جديد</button>
         <button class="btn" id="mExport">تصدير القياسات</button>
       </div>
-      <div class="msg" style="text-align:center;font-size:12px">لا يُرسل شيء عبر الإنترنت. يُحفظ ملف صغير على جهازك فقط (عدد الملفات والزمن، دون أسماء ملفات).</div>
+      <label class="mc"><input type="checkbox" id="mConsent"> أوافق على إرسال <b>عدد الملفات وزمن العمل فقط</b> لأغراض بحث علمي (دون أسماء ملفات أو محتوى). يُحفظ اختيارك ولا يظهر هذا السؤال مجددًا.</label>
+      <div class="msg" style="text-align:center;font-size:12px">بدون موافقة لا يُرسل شيء، ويمكنك تصدير ملف القياسات يدويًا.</div>
     </div>
   </div>
 </section>
@@ -382,7 +384,28 @@ $('dlPdf').onclick=async()=>{
 
 
 // ---- قياس الوقت (للبحث)
-const M={loadAt:null,doneAt:null,files:0,saves:[]};
+const M={loadAt:null,doneAt:null,files:0,saves:[],sent:false};
+const FB_CFG={apiKey:'AIzaSyAW7_REeMbo-zrCJYnR3wvP04xLfVOBMHg',authDomain:'encode-research.firebaseapp.com',projectId:'encode-research',storageBucket:'encode-research.firebasestorage.app',messagingSenderId:'342740137157',appId:'1:342740137157:web:306531ee5c6d3f3c852cac'};
+let fbApi=null;
+async function fbInit(){
+  if(fbApi) return fbApi;
+  const A=await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+  const F=await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  const app=A.initializeApp(FB_CFG,'encode-research');
+  fbApi={F,db:F.getFirestore(app)}; return fbApi;
+}
+async function sendMeasure(){
+  if(M.sent||!M.doneAt||!$('mConsent').checked) return;
+  M.sent=true;
+  try{
+    const {F,db}=await fbInit();
+    await F.addDoc(F.collection(db,'measurements'),{participant:($('mWho').value.trim()||'').slice(0,39),files:M.files,seconds:Math.round((M.doneAt-M.loadAt)/1000),completed:true,consent:true,tool:'coding-app-1',savedAt:F.serverTimestamp()});
+    $('mInfo').textContent+=' ✓ أُرسل القياس للباحث.';
+  }catch(e){ M.sent=false; }
+}
+try{ $('mConsent').checked = localStorage.getItem('enc_consent')==='1'; }catch(e){}
+$('mConsent').onchange=()=>{ try{ localStorage.setItem('enc_consent',$('mConsent').checked?'1':'0'); }catch(e){} if($('mConsent').checked) sendMeasure(); };
+
 const fmtT=sec=>{sec=Math.max(0,Math.round(sec));return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');};
 function mTick(){
   const el=$('mTime'); if(!el) return;
@@ -394,10 +417,10 @@ function mStart(){ if(!M.loadAt && files.length){ M.loadAt=Date.now(); } if(M.lo
 function mSave(kind){
   if(!M.loadAt) return;
   M.saves.push({kind, sec:Math.round((Date.now()-M.loadAt)/1000), files:files.length});
-  if(!M.doneAt && (kind==='pdf'||kind==='zip')){ M.doneAt=Date.now(); M.files=files.length; $('mInfo').textContent='اكتمل العمل خلال '+fmtT((M.doneAt-M.loadAt)/1000)+' لعدد '+M.files+' ملف. صدّر القياسات الآن.'; }
+  if(!M.doneAt && (kind==='pdf'||kind==='zip')){ M.doneAt=Date.now(); M.files=files.length; $('mInfo').textContent='اكتمل العمل خلال '+fmtT((M.doneAt-M.loadAt)/1000)+' لعدد '+M.files+' ملف.'; sendMeasure(); }
   mTick();
 }
-$('mReset').onclick=()=>{ M.loadAt=files.length?Date.now():null; M.doneAt=null; M.files=files.length; M.saves=[]; $('mInfo').textContent='بدأ قياس جديد.'; mTick(); };
+$('mReset').onclick=()=>{ M.loadAt=files.length?Date.now():null; M.doneAt=null; M.files=files.length; M.saves=[]; M.sent=false; $('mInfo').textContent='بدأ قياس جديد.'; mTick(); };
 $('mExport').onclick=async()=>{
   if(!M.loadAt){ $('mInfo').textContent='لا توجد قياسات بعد. ارفع الملفات واحفظ أولًا.'; return; }
   const secs = ((M.doneAt||Date.now())-M.loadAt)/1000;

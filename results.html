@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>نتائج قياس مولّد الترميز</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#14213d;--muted:#5b6578;--line:#dde3ee;--bg:#f3f5fa;--card:#fff;--accent:#2b4c9b;--gold:#d9731a}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Cairo',system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(135deg,#1d3270,#3b5bb5);color:#fff;padding:18px 24px;text-align:center}
+header h1{margin:0;font-size:24px}header p{margin:4px 0 0;opacity:.85;font-size:14px}
+main{max-width:1000px;margin:18px auto;padding:0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.btn{border:0;border-radius:10px;padding:10px 18px;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;background:var(--accent);color:#fff}
+.btn.alt{background:#eef2fb;color:var(--accent)}
+.center{text-align:center}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.stat{background:#f8faff;border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}
+.stat b{display:block;font-size:28px;color:var(--accent);font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:center}
+th{background:#eef2fb;color:var(--accent)}
+.bars{display:flex;align-items:flex-end;gap:5px;height:150px;padding:6px 4px;border-bottom:2px solid var(--line)}
+.bars div{flex:1;background:linear-gradient(180deg,#f08c1e,#d9731a);border-radius:5px 5px 0 0;min-width:6px;position:relative}
+.bars div span{position:absolute;top:-18px;left:0;right:0;text-align:center;font-size:11px;color:var(--muted)}
+.msg{color:var(--muted);font-size:14px;text-align:center;margin:8px 0}
+.err{color:#c1121f}
+h2{margin:0 0 10px;font-size:18px;color:var(--accent)}
+</style>
+</head>
+<body>
+<header><h1>نتائج قياس مولّد ترميز الوثائق</h1><p>بيانات مجمّعة من المشاركين الموافقين فقط (عدد الملفات وزمن العمل)</p></header>
+<main>
+  <div class="card center" id="loginCard">
+    <p>هذه الصفحة خاصة بالباحث. سجّل الدخول بحساب الجامعة لعرض النتائج.</p>
+    <button class="btn" id="loginBtn">تسجيل الدخول بحساب Google</button>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+  <div id="res" hidden>
+    <div class="card"><div class="stats" id="stats"></div></div>
+    <div class="card"><h2>الزمن لكل ملف (ثانية) حسب المشاركة</h2><div class="bars" id="bars"></div><div class="msg">كل عمود مشاركة واحدة، من الأقدم إلى الأحدث.</div></div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">كل القياسات</h2>
+      <div><button class="btn alt" id="refreshBtn">تحديث</button> <button class="btn" id="csvBtn">تنزيل CSV</button> <button class="btn alt" id="outBtn">خروج</button></div></div>
+      <div style="overflow:auto;margin-top:10px"><table><thead><tr><th>#</th><th>المشارك</th><th>التاريخ</th><th>الملفات</th><th>الزمن (ث)</th><th>ثانية/ملف</th></tr></thead><tbody id="rows"></tbody></table></div>
+    </div>
+  </div>
+</main>
+<script type="module">
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import {getFirestore,collection,getDocs,query,orderBy} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+const app=initializeApp({apiKey:'AIzaSyAW7_REeMbo-zrCJYnR3wvP04xLfVOBMHg',authDomain:'encode-research.firebaseapp.com',projectId:'encode-research',storageBucket:'encode-research.firebasestorage.app',messagingSenderId:'342740137157',appId:'1:342740137157:web:306531ee5c6d3f3c852cac'});
+const auth=getAuth(app), db=getFirestore(app), $=id=>document.getElementById(id);
+let data=[];
+const med=a=>{if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;};
+const fmt=n=>isFinite(n)?(Math.round(n*10)/10).toLocaleString('en'):'—';
+function render(){
+  const ok=data.filter(d=>d.files>0);
+  const rates=ok.map(d=>d.seconds/d.files);
+  const totF=ok.reduce((a,d)=>a+d.files,0), totS=ok.reduce((a,d)=>a+d.seconds,0);
+  $('stats').innerHTML=[
+    [ok.length,'عدد المشاركات'],[new Set(ok.map(d=>d.participant||'—')).size,'عدد المشاركين المختلفين'],
+    [totF,'مجموع الملفات'],[fmt(totF?totS/totF:NaN),'متوسط الثواني لكل ملف (مُجمَّع)'],
+    [fmt(rates.length?rates.reduce((a,b)=>a+b,0)/rates.length:NaN),'متوسط معدّل المشاركات'],[fmt(med(rates)),'وسيط الثواني لكل ملف']
+  ].map(([v,l])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  const mx=Math.max(1,...rates);
+  $('bars').innerHTML=rates.map(r=>`<div style="height:${Math.max(4,r/mx*100)}%"><span>${fmt(r)}</span></div>`).join('')||'<div class="msg" style="flex:1">لا توجد بيانات بعد</div>';
+  $('rows').innerHTML=[...ok].reverse().map((d,i)=>`<tr><td>${ok.length-i}</td><td>${String(d.participant||'—').replace(/[<&]/g,'')}</td><td>${d.date}</td><td>${d.files}</td><td>${d.seconds}</td><td>${fmt(d.seconds/d.files)}</td></tr>`).join('');
+}
+async function load(){
+  $('loginMsg').textContent='';
+  try{
+    const snap=await getDocs(query(collection(db,'measurements'),orderBy('savedAt','asc')));
+    data=snap.docs.map(x=>{const v=x.data();const t=v.savedAt&&v.savedAt.toDate?v.savedAt.toDate():null;return {participant:v.participant,files:v.files,seconds:v.seconds,date:t?t.toLocaleString('ar-IQ'):'',iso:t?t.toISOString():''};});
+    $('loginCard').hidden=true;$('res').hidden=false;render();
+  }catch(e){
+    $('res').hidden=true;$('loginCard').hidden=false;
+    $('loginMsg').innerHTML='<span class="err">لا تملك صلاحية عرض النتائج بهذا الحساب، أو تعذّر الاتصال.</span>';
+  }
+}
+onAuthStateChanged(auth,u=>{ if(u) load(); });
+$('loginBtn').onclick=async()=>{ try{ await signInWithPopup(auth,new GoogleAuthProvider()); }catch(e){ $('loginMsg').innerHTML='<span class="err">تعذّر تسجيل الدخول. اسمح بالنوافذ المنبثقة وأعد المحاولة.</span>'; } };
+$('refreshBtn').onclick=load;
+$('outBtn').onclick=async()=>{ await signOut(auth); data=[]; $('res').hidden=true; $('loginCard').hidden=false; };
+$('csvBtn').onclick=()=>{
+  const rows=[['participant','date_iso','files','seconds','seconds_per_file'],...data.map(d=>[d.participant||'',d.iso,d.files,d.seconds,(d.seconds/d.files).toFixed(2)])];
+  const csv='﻿'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='encode_measurements.csv';document.body.appendChild(a);a.click();a.remove();
+};
+</script>
+</body>
+</html>
