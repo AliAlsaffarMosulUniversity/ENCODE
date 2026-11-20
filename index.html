@@ -292,11 +292,11 @@ async function addFiles(list){
   refresh();
 }
 const drop=$('drop');
-drop.onclick=()=>$('file').click();
+drop.onclick=()=>{ mBegin(); $('file').click(); };
 $('file').onchange=e=>{ const arr=Array.from(e.target.files); e.target.value=''; addFiles(arr); };
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('on');};
 drop.ondragleave=()=>drop.classList.remove('on');
-drop.ondrop=e=>{e.preventDefault();drop.classList.remove('on');addFiles(Array.from(e.dataTransfer.files));};
+drop.ondrop=e=>{mBegin();e.preventDefault();drop.classList.remove('on');addFiles(Array.from(e.dataTransfer.files));};
 
 // ---- أحداث الإدخال
 ['sec','std','par','ind','cnt','yr','title','pages','ver','date'].forEach(id=>$(id).addEventListener('input',refresh));
@@ -386,7 +386,8 @@ async function fbInit(){
 function anonId(){
   try{ let v=localStorage.getItem('enc_anon'); if(!v){ v='u'+Math.random().toString(36).slice(2,10); localStorage.setItem('enc_anon',v); } return v; }catch(e){ return 'u'+Math.random().toString(36).slice(2,10); }
 }
-function mStart(){ if(!M.loadAt && files.length){ M.loadAt=Date.now(); } if(M.loadAt && !M.doneAt) M.files=files.length; }
+function mBegin(){ if(!M.loadAt && !M.doneAt) M.loadAt=Date.now(); }
+function mStart(){ if(!M.loadAt && files.length) M.loadAt=Date.now(); if(M.loadAt && !M.doneAt) M.files=files.length; }
 async function mSave(kind){
   if(!M.loadAt || M.doneAt || !(kind==='pdf'||kind==='zip')) return;
   M.doneAt=Date.now(); M.files=files.length;
