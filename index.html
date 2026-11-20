@@ -292,11 +292,11 @@ async function addFiles(list){
   refresh();
 }
 const drop=$('drop');
-drop.onclick=()=>{ mBegin(); $('file').click(); };
+drop.onclick=()=>$('file').click();
 $('file').onchange=e=>{ const arr=Array.from(e.target.files); e.target.value=''; addFiles(arr); };
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('on');};
 drop.ondragleave=()=>drop.classList.remove('on');
-drop.ondrop=e=>{mBegin();e.preventDefault();drop.classList.remove('on');addFiles(Array.from(e.dataTransfer.files));};
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('on');addFiles(Array.from(e.dataTransfer.files));};
 
 // ---- أحداث الإدخال
 ['sec','std','par','ind','cnt','yr','title','pages','ver','date'].forEach(id=>$(id).addEventListener('input',refresh));
@@ -335,6 +335,7 @@ $('dlPng').onclick=async()=>{
   }catch(e){ msg(e&&e.code==='declined'?'أُلغي الحفظ.':'تعذّر الحفظ.'); }
 };
 $('dlImgs').onclick=async()=>{
+  M.loadAt=Date.now();
   if(!downloads){ msg('الحفظ غير متاح في هذا العرض.'); return; }
   if(!files.length){ msg('ارفع ملفات أولاً.'); return; }
   if(!window.JSZip){ msg('مكتبة الضغط لم تُحمَّل بعد.'); return; }
@@ -354,6 +355,7 @@ $('dlImgs').onclick=async()=>{
   }catch(e){ msg(e&&e.code==='declined'?'أُلغي الحفظ.':'تعذّر الحفظ.'); refresh(); }
 };
 $('dlPdf').onclick=async()=>{
+  M.loadAt=Date.now();
   if(!downloads){ msg('الحفظ غير متاح في هذا العرض.'); return; }
   if(!window.jspdf){ msg('مكتبة PDF لم تُحمَّل بعد.'); return; }
   try{
@@ -386,16 +388,15 @@ async function fbInit(){
 function anonId(){
   try{ let v=localStorage.getItem('enc_anon'); if(!v){ v='u'+Math.random().toString(36).slice(2,10); localStorage.setItem('enc_anon',v); } return v; }catch(e){ return 'u'+Math.random().toString(36).slice(2,10); }
 }
-function mBegin(){ if(!M.loadAt && !M.doneAt) M.loadAt=Date.now(); }
-function mStart(){ if(!M.loadAt && files.length) M.loadAt=Date.now(); if(M.loadAt && !M.doneAt) M.files=files.length; }
-async function mSave(kind){
+function mStart(){ M.files=files.length; }
+async function mSave(kind,endTs){
   if(!M.loadAt || M.doneAt || !(kind==='pdf'||kind==='zip')) return;
-  M.doneAt=Date.now(); M.files=files.length;
+  M.doneAt=endTs||Date.now(); M.files=files.length;
   if(M.sent||M.files<1) return;
   M.sent=true;
   try{
     const {F,db}=await fbInit();
-    await F.addDoc(F.collection(db,'measurements'),{participant:anonId(),files:M.files,seconds:Math.round((M.doneAt-M.loadAt)/1000),completed:true,tool:'coding-app-2',savedAt:F.serverTimestamp()});
+    await F.addDoc(F.collection(db,'measurements'),{participant:anonId(),files:M.files,seconds:Math.round((M.doneAt-M.loadAt)/100)/10,completed:true,tool:'coding-app-2',savedAt:F.serverTimestamp()});
   }catch(e){ M.sent=false; }
 }
 
@@ -415,7 +416,7 @@ async function mSave(kind){
   }
   const _orig=downloads;
   rawSave=(o)=>_orig.save(o);
-  downloads={save:async(o)=>{ const r=await _orig.save(o); const n=(o.filename||''); mSave(/\.pdf$/i.test(n)?'pdf':/\.zip$/i.test(n)?'zip':'png'); return r; }};
+  downloads={save:async(o)=>{ const t=Date.now(); const r=await _orig.save(o); const n=(o.filename||''); mSave(/\.pdf$/i.test(n)?'pdf':/\.zip$/i.test(n)?'zip':'png',t); return r; }};
 })();
 </script>
 </body>
