@@ -97,7 +97,7 @@ canvas{width:100%;max-width:640px;height:auto;background:#fff;box-shadow:0 6px 2
       <div><label>رقم المعيار</label><div class="pre"><span>S</span><input id="std" type="number" min="0" value="4"></div></div>
       <div><label>رقم المتطلب</label><div class="pre"><span>D</span><input id="par" type="number" min="0" value="1"></div></div>
       <div><label>رقم المؤشر</label><input id="ind" type="number" min="1" value="1"><small dir="ltr" style="display:block;text-align:right;color:#5b6578;margin-top:3px">1 = a &nbsp; 2 = b &nbsp; 3 = c</small></div>
-      <div><label>عدد النقاط داخل المؤشر</label><input id="cnt" type="number" min="0" value="25"><small style="color:#5b6578">يُحسب تلقائياً عند رفع الملفات</small></div>
+      <div><label>عدد النقاط داخل المؤشر</label><input id="cnt" type="number" min="0" value="25" disabled><small style="color:#5b6578">يُحسب تلقائياً من عدد الملفات المرفوعة</small></div>
       <div><label>السنة</label><input id="yr" type="number" value="2025"></div>
     </div>
     <div class="codebox" style="margin-top:12px"><small id="codeLbl">الترميز الناتج (الصفحة الحالية)</small><div class="code" id="codeOut">—</div></div>
@@ -260,7 +260,7 @@ function render(c, idx){
 
 function refresh(){
   $('pages').value = getCount() || '';
-  $('cnt').disabled = files.length>0; if(files.length) $('cnt').value = files.length;
+  $('cnt').disabled = true; if(files.length) $('cnt').value = files.length;
   $('codeOut').textContent = makeCode(cur);
   render(cv, cur);
   { const f=files[cur]; $('lvInfo').textContent = f ? ('مستوى الإنارة: '+((f.lv||0)>0?'+':'')+(f.lv||0)) : ''; }
