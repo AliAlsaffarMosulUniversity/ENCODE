@@ -119,6 +119,8 @@ canvas{width:100%;max-width:640px;height:auto;background:#fff;box-shadow:0 6px 2
     <h2>٣) الملفات المرفقة</h2>
     <div class="drop" id="drop">اسحب كل الصور دفعة واحدة (Select All)<br><small>سيُرتَّب الترميز حسب اسم الملف: الأول a1، الثاني a2 … <br>صور JPG / PNG (وPDF إن أمكن) – كل ملف يُوضع في فورم مستقل</small></div>
     <input type="file" id="file" accept="image/*,application/pdf" multiple hidden>
+    <div class="row" style="margin-top:8px"><button class="btn alt" id="impBtn">استيراد PDF سبق تصديره من التطبيق (لتعديل السنة أو الرقم أو الصفحات)</button></div>
+    <input type="file" id="impFile" accept="application/pdf" hidden>
     <div class="thumbs" id="thumbs"></div>
     <div class="msg" id="upMsg"></div>
     <div id="list"></div>
@@ -193,10 +195,38 @@ function drawAdj(ctx,img,x,y,w,h,lv){
   for(let i=0;i<d.length;i+=4){ for(let j=0;j<3;j++){ const v=((d[i+j]*b-128)*k+128); d[i+j]=v<0?0:v>255?255:v; } }
   tx.putImageData(id,0,0); ctx.drawImage(tc,x,y,w,h);
 }
+function drawHeader(ctx, idx){
+  // بيانات الرأس
+  const ink = '#10204a', F = 'Cairo, sans-serif';
+  ctx.fillStyle = ink; ctx.textBaseline='middle'; ctx.textAlign='right';
+  const put = (txt, x, y, maxW, ltr) => {
+    if (!txt) return;
+    ctx.direction = ltr ? 'ltr' : 'rtl';
+    const s = fitText(ctx, txt, maxW, 30, 700, F); ctx.font = '700 '+s+'px '+F;
+    ctx.fillText(txt, x, y);
+  };
+  put(makeCode(idx), 955, 147, 460, true);
+  put($('title').value.trim(), 868, 85, 660, false);
+  const pg = $('pages').value.trim() || (files.length ? '1' : '');
+  put(pg, 300, 142, 95, false);
+  const d = $('date').value.trim(); if (d) put(d, 378, 183, 175, !/[\u0600-\u06FF]/.test(d));
+  put($('ver').value.trim(), 326, 224, 120, false);
+  // رقم الصفحة في خانة «رقم الصفحة» أسفل الفورم (منتصف الخانة)
+  ctx.save(); ctx.direction='ltr'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font='700 46px '+F; ctx.fillStyle=ink; ctx.fillText(String(idx+1), 1105, 1625); ctx.restore();
+}
 function render(c, idx){
   const ctx = c.getContext('2d');
   ctx.clearRect(0,0,c.width,c.height);
   ctx.fillStyle = '#fff'; ctx.fillRect(0,0,c.width,c.height);
+  const fi = files[idx];
+  if (fi && fi.imported){
+    ctx.drawImage(fi.img,0,0,c.width,c.height);
+    ctx.fillStyle='#fff';
+    [[470,120,490,55],[205,58,665,52],[205,122,100,40],[203,163,180,42],[206,203,125,44],[1040,1580,130,90]].forEach(r=>ctx.fillRect(r[0],r[1],r[2],r[3]));
+    drawHeader(ctx, idx);
+    return;
+  }
   if (formImg) ctx.drawImage(formImg,0,0,c.width,c.height);
 
   // منطقة الملف: بين الخط الأزرق العلوي وحدود الجدول
@@ -225,24 +255,7 @@ function render(c, idx){
     ctx.restore();
   }
 
-  // بيانات الرأس
-  const ink = '#10204a', F = 'Cairo, sans-serif';
-  ctx.fillStyle = ink; ctx.textBaseline='middle'; ctx.textAlign='right';
-  const put = (txt, x, y, maxW, ltr) => {
-    if (!txt) return;
-    ctx.direction = ltr ? 'ltr' : 'rtl';
-    const s = fitText(ctx, txt, maxW, 30, 700, F); ctx.font = '700 '+s+'px '+F;
-    ctx.fillText(txt, x, y);
-  };
-  put(makeCode(idx), 955, 147, 460, true);
-  put($('title').value.trim(), 868, 85, 660, false);
-  const pg = $('pages').value.trim() || (files.length ? '1' : '');
-  put(pg, 300, 142, 95, false);
-  const d = $('date').value.trim(); if (d) put(d, 378, 183, 175, !/[\u0600-\u06FF]/.test(d));
-  put($('ver').value.trim(), 326, 224, 120, false);
-  // رقم الصفحة في خانة «رقم الصفحة» أسفل الفورم (منتصف الخانة)
-  ctx.save(); ctx.direction='ltr'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.font='700 46px '+F; ctx.fillStyle=ink; ctx.fillText(String(idx+1), 1105, 1625); ctx.restore();
+  drawHeader(ctx, idx);
 }
 
 function refresh(){
@@ -293,6 +306,27 @@ async function addFiles(list){
 }
 const drop=$('drop');
 drop.onclick=()=>$('file').click();
+$('impBtn').onclick=()=>$('impFile').click();
+$('impFile').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  $('upMsg').textContent='جارٍ استيراد PDF…';
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;
+    let meta=null; try{ const m=await pdf.getMetadata(); const k=(m.info&&m.info.Keywords)||''; if(k.indexOf('ENC1:')===0) meta=JSON.parse(decodeURIComponent(k.slice(5))); }catch(_){}
+    if(meta){ for(const id in meta){ const el=$(id); if(el) el.value=meta[id]; } }
+    const start=files.length;
+    for(let p=1;p<=pdf.numPages;p++){
+      const pg=await pdf.getPage(p), v1=pg.getViewport({scale:1}), vp=pg.getViewport({scale:1241/v1.width});
+      const c=document.createElement('canvas'); c.width=1241; c.height=1755;
+      await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+      const url=c.toDataURL('image/jpeg',.93);
+      files.push({img:await loadImg(url),url,name:f.name+' ص'+p,imported:true});
+    }
+    cur=start; refresh();
+    $('upMsg').textContent='تم استيراد '+pdf.numPages+' صفحة. '+(meta?'استُعيدت إعدادات الترميز من الملف.':'ملف قديم: أدخل الإعدادات يدوياً.')+' عدّل ما تريد ثم احفظ من جديد.';
+  }catch(err){ $('upMsg').textContent='تعذّر استيراد الملف.'; }
+};
 $('file').onchange=e=>{ const arr=Array.from(e.target.files); e.target.value=''; addFiles(arr); };
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('on');};
 drop.ondragleave=()=>drop.classList.remove('on');
@@ -361,6 +395,7 @@ $('dlPdf').onclick=async()=>{
   try{
     msg('جارٍ إنشاء الملف…');
     const { jsPDF } = window.jspdf, pdf = new jsPDF({unit:'mm',format:'a4'});
+    { const m={}; ['sec','std','par','ind','yr','title','ver','date','pages'].forEach(id=>m[id]=$(id).value); pdf.setProperties({title:baseCode(),subject:'ENCODE',keywords:'ENC1:'+encodeURIComponent(JSON.stringify(m))}); }
     const n = Math.max(1, files.length), tmp=document.createElement('canvas'); tmp.width=1241; tmp.height=1755;
     for(let i=0;i<n;i++){
       render(tmp,i);
