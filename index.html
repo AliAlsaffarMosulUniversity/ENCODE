@@ -296,6 +296,7 @@ async function addFile(file){
   files.push({img:await loadImg(url),url,name:file.name});
 }
 async function addFiles(list){
+  if(justSaved) resetAll();
   $('upMsg').textContent='جارٍ التحميل…';
   const failed=[], before=files.length;
   for (const f of list){ try{ const n=files.length; await addFile(f); if(files.length===n) failed.push(f.name); }catch(err){ failed.push(f.name); } }
@@ -306,10 +307,20 @@ async function addFiles(list){
   refresh();
 }
 const drop=$('drop');
+const DEF={}; ['sec','std','par','ind','cnt','yr','title','ver','date'].forEach(id=>DEF[id]=$(id).value);
+let justSaved=false;
+function resetAll(){
+  justSaved=false; files=[]; cur=0;
+  for(const id in DEF) $(id).value=DEF[id];
+  M.loadAt=null; M.doneAt=null; M.files=0; M.sent=false;
+  $('upMsg').textContent=''; $('dlMsg').textContent='';
+  refresh();
+}
 drop.onclick=()=>$('file').click();
 $('impBtn').onclick=()=>$('impFile').click();
 $('impFile').onchange=async e=>{
   const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  if(justSaved) resetAll();
   $('upMsg').textContent='جارٍ استيراد PDF…';
   try{
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -452,7 +463,7 @@ async function mSave(kind,endTs){
   }
   const _orig=downloads;
   rawSave=(o)=>_orig.save(o);
-  downloads={save:async(o)=>{ const t=Date.now(); const r=await _orig.save(o); const n=(o.filename||''); mSave(/\.pdf$/i.test(n)?'pdf':/\.zip$/i.test(n)?'zip':'png',t); return r; }};
+  downloads={save:async(o)=>{ const t=Date.now(); const r=await _orig.save(o); const n=(o.filename||''); { const k=/\.pdf$/i.test(n)?'pdf':/\.zip$/i.test(n)?'zip':'png'; if(k!=='png') justSaved=true; mSave(k,t); } return r; }};
 })();
 </script>
 </body>
