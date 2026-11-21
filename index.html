@@ -311,7 +311,7 @@ const DEF={}; ['sec','std','par','ind','cnt','yr','title','ver','date'].forEach(
 let justSaved=false;
 function resetAll(){
   justSaved=false; files=[]; cur=0;
-  for(const id in DEF) if(id!=='title') $(id).value=DEF[id];
+  for(const id in DEF) if(id!=='title'&&id!=='std') $(id).value=DEF[id];
   M.loadAt=null; M.doneAt=null; M.files=0; M.sent=false;
   $('upMsg').textContent='';
   refresh();
