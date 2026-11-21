@@ -98,7 +98,7 @@ canvas{width:100%;max-width:640px;height:auto;background:#fff;box-shadow:0 6px 2
       <div><label>رقم المتطلب</label><div class="pre"><span>D</span><input id="par" type="number" min="0" value="1"></div></div>
       <div><label>رقم المؤشر</label><input id="ind" type="number" min="1" value="1"><small dir="ltr" style="display:block;text-align:right;color:#5b6578;margin-top:3px">1 = a &nbsp; 2 = b &nbsp; 3 = c</small></div>
       <div><label>عدد النقاط داخل المؤشر</label><input id="cnt" type="number" min="0" value="25"><small style="color:#5b6578">يُحسب تلقائياً عند رفع الملفات</small></div>
-      <div><label>السنة</label><input id="yr" type="number" value="2026"></div>
+      <div><label>السنة</label><input id="yr" type="number" value="2025"></div>
     </div>
     <div class="codebox" style="margin-top:12px"><small id="codeLbl">الترميز الناتج (الصفحة الحالية)</small><div class="code" id="codeOut">—</div></div>
     <div class="row"><button class="btn alt" id="copyBtn">نسخ كل الترميزات</button></div>
@@ -109,9 +109,9 @@ canvas{width:100%;max-width:640px;height:auto;background:#fff;box-shadow:0 6px 2
     <h2>٢) بيانات رأس الفورم (اختيارية)</h2>
     <div class="grid">
       <div class="full"><label>عنوان الوثيقة</label><input type="text" id="title" placeholder="مثال: محضر اجتماع مجلس القسم"></div>
-      <div><label>عدد الصفحات</label><input type="text" id="pages" placeholder="تلقائي"></div>
+      <div><label>عدد الصفحات</label><input type="text" id="pages" disabled title="يُؤخذ تلقائياً من عدد النقاط في المؤشر"><small style="color:#5b6578">تلقائي: يساوي عدد النقاط</small></div>
       <div><label>رقم الإصدار</label><input type="text" id="ver" value="0"></div>
-      <div class="full"><label>تاريخ الوثيقة</label><input type="text" id="date" placeholder="اكتبه كما تريد، مثال: 2026/11/18"></div>
+      <div class="full"><label>تاريخ الوثيقة</label><input type="text" id="date" value="2025" placeholder="اكتبه كما تريد، مثال: 2025/11/18"></div>
     </div>
   </div>
 
@@ -207,7 +207,7 @@ function drawHeader(ctx, idx){
   };
   put(makeCode(idx), 955, 147, 460, true);
   put($('title').value.trim(), 868, 85, 660, false);
-  const pg = $('pages').value.trim() || (files.length ? '1' : '');
+  const pg = String(getCount()||'');
   put(pg, 300, 142, 95, false);
   const d = $('date').value.trim(); if (d) put(d, 378, 183, 175, !/[\u0600-\u06FF]/.test(d));
   put($('ver').value.trim(), 326, 224, 120, false);
@@ -259,6 +259,7 @@ function render(c, idx){
 }
 
 function refresh(){
+  $('pages').value = getCount() || '';
   $('cnt').disabled = files.length>0; if(files.length) $('cnt').value = files.length;
   $('codeOut').textContent = makeCode(cur);
   render(cv, cur);
