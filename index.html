@@ -313,7 +313,7 @@ function resetAll(){
   justSaved=false; files=[]; cur=0;
   for(const id in DEF) if(id!=='title') $(id).value=DEF[id];
   M.loadAt=null; M.doneAt=null; M.files=0; M.sent=false;
-  $('upMsg').textContent=''; $('dlMsg').textContent='';
+  $('upMsg').textContent='';
   refresh();
 }
 drop.onclick=()=>$('file').click();
@@ -441,10 +441,11 @@ async function mSave(kind,endTs){
   M.doneAt=endTs||Date.now(); M.files=files.length;
   if(M.sent||M.files<1) return;
   M.sent=true;
+  const PL={files:M.files,seconds:Math.round((M.doneAt-M.loadAt)/100)/10};
   try{
     const {F,db}=await fbInit();
-    await F.addDoc(F.collection(db,'measurements'),{participant:anonId(),files:M.files,seconds:Math.round((M.doneAt-M.loadAt)/100)/10,completed:true,tool:'coding-app-2',savedAt:F.serverTimestamp()});
-  }catch(e){ M.sent=false; }
+    await F.addDoc(F.collection(db,'measurements'),{participant:anonId(),files:PL.files,seconds:PL.seconds,completed:true,tool:'coding-app-2',savedAt:F.serverTimestamp()});
+  }catch(e){}
 }
 
 // ---- بدء
@@ -463,7 +464,7 @@ async function mSave(kind,endTs){
   }
   const _orig=downloads;
   rawSave=(o)=>_orig.save(o);
-  downloads={save:async(o)=>{ const t=Date.now(); const r=await _orig.save(o); const n=(o.filename||''); { const k=/\.pdf$/i.test(n)?'pdf':/\.zip$/i.test(n)?'zip':'png'; if(k!=='png') justSaved=true; mSave(k,t); } return r; }};
+  downloads={save:async(o)=>{ const t=Date.now(); const r=await _orig.save(o); const n=(o.filename||''); { const k=/\.pdf$/i.test(n)?'pdf':/\.zip$/i.test(n)?'zip':'png'; if(k!=='png'){ justSaved=true; mSave(k,t); setTimeout(resetAll,400); } } return r; }};
 })();
 </script>
 </body>
