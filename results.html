@@ -41,11 +41,13 @@ h2{margin:0 0 10px;font-size:18px;color:var(--accent)}
   </div>
   <div id="res" hidden>
     <div class="card"><div class="stats" id="stats"></div></div>
-    <div class="card"><h2>الزمن لكل ملف (ثانية) حسب المشاركة</h2><div class="bars" id="bars"></div><div class="msg">كل عمود مشاركة واحدة، من الأقدم إلى الأحدث.</div></div>
+    <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0" id="chTitle">الزمن لكل ملف (ثانية) حسب المشاركة</h2>
+<select id="chMode" style="font-family:inherit;padding:6px 10px;border-radius:8px"><option value="rate">عرض: ثانية لكل ملف</option><option value="files">عرض: عدد الملفات في كل PDF</option></select></div>
+<div class="bars" id="bars"></div><div class="msg">كل عمود ملف PDF محفوظ واحد، من الأقدم إلى الأحدث.</div></div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">كل القياسات</h2>
       <div><button class="btn alt" id="refreshBtn">تحديث</button> <button class="btn" id="csvBtn">تنزيل CSV</button> <button class="btn alt" id="outBtn">خروج</button></div></div>
-      <div style="overflow:auto;margin-top:10px"><table><thead><tr><th>#</th><th>المشارك</th><th>التاريخ</th><th>الملفات</th><th>الزمن (ث)</th><th>ثانية/ملف</th><th>حذف</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <div style="overflow:auto;margin-top:10px"><table><thead><tr><th>#</th><th>المشارك</th><th>التاريخ</th><th>عدد الملفات في الـ PDF</th><th>الزمن (ث)</th><th>ثانية/ملف</th><th>حذف</th></tr></thead><tbody id="rows"></tbody></table></div>
     </div>
   </div>
 </main>
@@ -65,10 +67,13 @@ function render(){
   $('stats').innerHTML=[
     [ok.length,'عدد المشاركات'],[new Set(ok.map(d=>d.participant||'—')).size,'عدد المشاركين المختلفين'],
     [totF,'مجموع الملفات'],[fmt(totF?totS/totF:NaN),'متوسط الثواني لكل ملف (مُجمَّع)'],
-    [fmt(rates.length?rates.reduce((a,b)=>a+b,0)/rates.length:NaN),'متوسط معدّل المشاركات'],[fmt(med(rates)),'وسيط الثواني لكل ملف']
+    [fmt(rates.length?rates.reduce((a,b)=>a+b,0)/rates.length:NaN),'متوسط معدّل المشاركات'],[fmt(med(rates)),'وسيط الثواني لكل ملف'],
+    [ok.length,'عدد ملفات PDF المحفوظة'],[fmt(ok.length?totF/ok.length:NaN),'متوسط الملفات في كل PDF'],[ok.length?Math.min(...ok.map(d=>d.files)):'—','أقل عدد ملفات في PDF'],[ok.length?Math.max(...ok.map(d=>d.files)):'—','أكبر عدد ملفات في PDF']
   ].map(([v,l])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
-  const mx=Math.max(1,...rates);
-  $('bars').innerHTML=rates.map(r=>`<div style="height:${Math.max(4,r/mx*100)}%"><span>${fmt(r)}</span></div>`).join('')||'<div class="msg" style="flex:1">لا توجد بيانات بعد</div>';
+  const vals=$('chMode').value==='files'?ok.map(d=>d.files):rates;
+  $('chTitle').textContent=$('chMode').value==='files'?'عدد الملفات في كل PDF':'الزمن لكل ملف (ثانية) حسب المشاركة';
+  const mx=Math.max(1,...vals);
+  $('bars').innerHTML=vals.map(r=>`<div style="height:${Math.max(4,r/mx*100)}%"><span>${fmt(r)}</span></div>`).join('')||'<div class="msg" style="flex:1">لا توجد بيانات بعد</div>';
   $('rows').innerHTML=[...ok].reverse().map((d,i)=>`<tr><td>${ok.length-i}</td><td>${String(d.participant||'—').replace(/[<&]/g,'')}</td><td>${d.date}</td><td>${d.files}</td><td>${d.seconds}</td><td>${fmt(d.seconds/d.files)}</td><td><button class="delb" data-id="${d.id}" style="background:#c0392b;color:#fff;border:0;border-radius:8px;padding:4px 12px;cursor:pointer;font-family:inherit">حذف</button></td></tr>`).join('');
 }
 $('rows').addEventListener('click',async e=>{
@@ -92,6 +97,7 @@ async function load(){
 onAuthStateChanged(auth,u=>{ if(u) load(); });
 $('loginBtn').onclick=async()=>{ try{ await signInWithPopup(auth,new GoogleAuthProvider()); }catch(e){ $('loginMsg').innerHTML='<span class="err">تعذّر تسجيل الدخول. اسمح بالنوافذ المنبثقة وأعد المحاولة.</span>'; } };
 $('refreshBtn').onclick=load;
+$('chMode').onchange=render;
 $('outBtn').onclick=async()=>{ await signOut(auth); data=[]; $('res').hidden=true; $('loginCard').hidden=false; };
 $('csvBtn').onclick=()=>{
   const rows=[['participant','date_iso','files','seconds','seconds_per_file'],...data.map(d=>[d.participant||'',d.iso,d.files,d.seconds,(d.seconds/d.files).toFixed(2)])];
