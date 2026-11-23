@@ -522,7 +522,7 @@ async function mSave(kind,endTs){
   const http=/^https?:$/.test(location.protocol);
   if(http && 'serviceWorker' in navigator){ window.addEventListener('load',()=>{ try{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} }); }
   const bar=document.getElementById('pwaBar'), go=document.getElementById('pwaGo'), x=document.getElementById('pwaX'), ios=document.getElementById('pwaIos');
-  if(!http||!bar) return;
+  if(!http||!bar||!/github\.io$|^localhost$|^127\.0\.0\.1$/.test(location.hostname)) return;
   const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
   if(standalone) return;
   let hideUntil=0; try{ hideUntil=+localStorage.getItem('enc_pwa_hide')||0; }catch(e){}
