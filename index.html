@@ -2,7 +2,15 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d3270">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ترميز الوثائق">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>مولّد ترميز الوثائق وتعبئة الفورم</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
@@ -78,6 +86,29 @@ canvas{width:100%;max-width:640px;height:auto;background:#fff;box-shadow:0 6px 2
 .msg{font-size:13px;color:var(--muted);margin-top:8px;min-height:18px}
 .chk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink);margin-top:8px}
 .chk input{width:auto}
+
+/* ===== تثبيت كتطبيق (PWA) ===== */
+header{padding-top:max(14px,env(safe-area-inset-top))}
+.pwa-bar{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translate(-50%,160%);z-index:60;display:flex;align-items:center;gap:12px;direction:rtl;max-width:min(94vw,440px);width:max-content;padding:10px 12px 10px 14px;border-radius:20px;background:rgba(20,33,61,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:#fff;box-shadow:0 14px 40px rgba(14,24,60,.35),inset 0 0 0 1px rgba(255,255,255,.12);transition:transform .55s cubic-bezier(.2,.9,.25,1.1)}
+.pwa-bar.show{transform:translate(-50%,0)}
+.pwa-bar img{width:44px;height:44px;border-radius:12px;flex:none;box-shadow:0 0 0 2px rgba(255,190,80,.7)}
+.pwa-bar .tx{display:flex;flex-direction:column;line-height:1.35;min-width:0}
+.pwa-bar .tx b{font-size:14px;font-weight:800}
+.pwa-bar .tx span{font-size:12px;color:#c8d3ee}
+.pwa-bar button{font-family:inherit;border:0;cursor:pointer}
+.pwa-bar .go{background:linear-gradient(135deg,#f5a524,#ffcf70);color:#3a2500;font-weight:800;font-size:14px;padding:9px 16px;border-radius:12px;white-space:nowrap;box-shadow:0 4px 14px rgba(245,165,36,.35)}
+.pwa-bar .go:active{transform:scale(.97)}
+.pwa-bar .x{background:transparent;color:#9fb0d8;font-size:20px;line-height:1;padding:4px 6px}
+.pwa-ios{position:fixed;inset:0;z-index:70;background:rgba(10,18,40,.55);display:none;align-items:flex-end;justify-content:center;direction:rtl}
+.pwa-ios.show{display:flex}
+.pwa-ios .sheet{background:#fff;color:#14213d;width:min(100%,460px);border-radius:24px 24px 0 0;padding:22px 22px max(24px,env(safe-area-inset-bottom));box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+.pwa-ios h3{margin:0 0 4px;font-size:18px;color:#1d3270}
+.pwa-ios p{margin:0 0 14px;color:#5b6578;font-size:13px}
+.pwa-ios ol{margin:0;padding:0;list-style:none;counter-reset:s}
+.pwa-ios li{counter-increment:s;display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #eef1f8;font-size:14px}
+.pwa-ios li:before{content:counter(s);flex:none;width:28px;height:28px;border-radius:50%;background:#eef2fb;color:#2b4c9b;font-weight:800;display:grid;place-items:center}
+.pwa-ios .ok{margin-top:14px;width:100%;font-family:inherit;border:0;border-radius:14px;padding:12px;font-size:15px;font-weight:800;background:#2b4c9b;color:#fff;cursor:pointer}
+@media (display-mode:standalone){.pwa-bar,.pwa-ios{display:none!important}}
 </style>
 </head>
 <body>
@@ -465,6 +496,51 @@ async function mSave(kind,endTs){
   const _orig=downloads;
   rawSave=(o)=>_orig.save(o);
   downloads={save:async(o)=>{ const t=Date.now(); const r=await _orig.save(o); const n=(o.filename||''); { const k=/\.pdf$/i.test(n)?'pdf':/\.zip$/i.test(n)?'zip':'png'; if(k!=='png'){ justSaved=true; mSave(k,t); setTimeout(resetAll,400); } } return r; }};
+})();
+</script>
+
+<div class="pwa-bar" id="pwaBar" role="dialog" aria-label="تثبيت التطبيق">
+  <img src="icons/icon-192.png" alt="">
+  <div class="tx"><b>ثبّت التطبيق على جهازك</b><span>يعمل بملء الشاشة وبدون إنترنت</span></div>
+  <button class="go" id="pwaGo">تثبيت</button>
+  <button class="x" id="pwaX" aria-label="إغلاق">×</button>
+</div>
+<div class="pwa-ios" id="pwaIos">
+  <div class="sheet">
+    <h3>تثبيت التطبيق على الآيفون</h3>
+    <p>خطوات بسيطة من متصفح Safari:</p>
+    <ol>
+      <li>اضغط زر المشاركة <b>⬆︎</b> أسفل الشاشة</li>
+      <li>اختر «إضافة إلى الشاشة الرئيسية»</li>
+      <li>اضغط «إضافة» وسيظهر التطبيق بأيقونته</li>
+    </ol>
+    <button class="ok" id="pwaOk">حسناً</button>
+  </div>
+</div>
+<script>
+(function(){
+  const http=/^https?:$/.test(location.protocol);
+  if(http && 'serviceWorker' in navigator){ window.addEventListener('load',()=>{ try{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} }); }
+  const bar=document.getElementById('pwaBar'), go=document.getElementById('pwaGo'), x=document.getElementById('pwaX'), ios=document.getElementById('pwaIos');
+  if(!http||!bar) return;
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+  if(standalone) return;
+  let hideUntil=0; try{ hideUntil=+localStorage.getItem('enc_pwa_hide')||0; }catch(e){}
+  if(Date.now()<hideUntil) return;
+  let dp=null;
+  const show=()=>setTimeout(()=>bar.classList.add('show'),1800);
+  const hide=(days)=>{ bar.classList.remove('show'); try{ localStorage.setItem('enc_pwa_hide',String(Date.now()+days*864e5)); }catch(e){} };
+  window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); dp=e; show(); });
+  window.addEventListener('appinstalled',()=>{ bar.classList.remove('show'); dp=null; });
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(isIOS) show();
+  go.onclick=async()=>{
+    if(dp){ dp.prompt(); try{ await dp.userChoice; }catch(e){} dp=null; bar.classList.remove('show'); }
+    else if(isIOS){ ios.classList.add('show'); }
+  };
+  x.onclick=()=>hide(7);
+  document.getElementById('pwaOk').onclick=()=>{ ios.classList.remove('show'); bar.classList.remove('show'); };
+  ios.addEventListener('click',e=>{ if(e.target===ios) ios.classList.remove('show'); });
 })();
 </script>
 </body>
